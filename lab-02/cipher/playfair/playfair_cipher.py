@@ -1,23 +1,25 @@
 class PlayFairCipher:
-    def __init__(self) -> None:
-        pass
-
     def __init__(self):
         pass
 
     def create_playfair_matrix(self, key):
-        key = key.replace("J", "I")  # Chuyển "J" thành "I" trong khóa
-        key = key.upper()
-        key_set = set(key)
-        alphabet = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
-        remaining_letters = [
-            letter for letter in alphabet if letter not in key_set]
-        matrix = list(key)
+        if not isinstance(key, str):
+            raise ValueError("Key must be a string.")
+            
+        key = key.replace("J", "I").upper()
+        clean_key = []
+        for c in key:
+            if c.isalpha() and c not in clean_key:
+                clean_key.append(c)
 
-        for letter in remaining_letters:
-            matrix.append(letter)
-            if len(matrix) == 25:
-                break
+        alphabet = "ABCDEFGHIKLMNOPQRSTUVWXYZ"
+        matrix = list(clean_key)
+
+        for letter in alphabet:
+            if letter not in matrix:
+                matrix.append(letter)
+                if len(matrix) == 25:
+                    break
 
         playfair_matrix = [matrix[i:i+5] for i in range(0, len(matrix), 5)]
         return playfair_matrix
@@ -27,59 +29,79 @@ class PlayFairCipher:
             for col in range(len(matrix[row])):
                 if matrix[row][col] == letter:
                     return row, col
+        raise ValueError(f"Letter {letter} not found in Playfair matrix.")
+
+    def get_playfair_pairs(self, text):
+        cleaned = []
+        for char in text.upper():
+            if char == 'J':
+                cleaned.append('I')
+            elif char.isalpha():
+                cleaned.append(char)
+        
+        pairs = []
+        i = 0
+        while i < len(cleaned):
+            c1 = cleaned[i]
+            if i + 1 < len(cleaned):
+                c2 = cleaned[i+1]
+                if c1 == c2:
+                    pad = 'Q' if c1 == 'X' else 'X'
+                    pairs.append(c1 + pad)
+                    i += 1
+                else:
+                    pairs.append(c1 + c2)
+                    i += 2
+            else:
+                pad = 'Q' if c1 == 'X' else 'X'
+                pairs.append(c1 + pad)
+                i += 1
+        return pairs
 
     def playfair_encrypt(self, plain_text, matrix):
-        # Chuyển "J" thành "I" trong văn bản đầu vào
-        plain_text = plain_text.replace("J", "I")
-        plain_text = plain_text.upper()
+        pairs = self.get_playfair_pairs(plain_text)
         encrypted_text = ""
 
-        for i in range(0, len(plain_text), 2):
-            pair = plain_text[i:i+2]
-            if len(pair) == 1:  # Xử lý nếu số lượng ký tự lẻ
-                pair += "X"
+        for pair in pairs:
             row1, col1 = self.find_letter_coords(matrix, pair[0])
             row2, col2 = self.find_letter_coords(matrix, pair[1])
             if row1 == row2:
-                encrypted_text += matrix[row1][(col1 + 1) %
-                                               5] + matrix[row2][(col2 + 1) % 5]
+                encrypted_text += matrix[row1][(col1 + 1) % 5] + matrix[row2][(col2 + 1) % 5]
             elif col1 == col2:
-                encrypted_text += matrix[(row1 + 1) %
-                                         5][col1] + matrix[(row2 + 1) % 5][col2]
+                encrypted_text += matrix[(row1 + 1) % 5][col1] + matrix[(row2 + 1) % 5][col2]
             else:
                 encrypted_text += matrix[row1][col2] + matrix[row2][col1]
         return encrypted_text
 
     def playfair_decrypt(self, cipher_text, matrix):
-        cipher_text = cipher_text.upper()
-        decrypted_text = ""
-        decrypted_text1 = ""
+        cleaned_cipher = [c for c in cipher_text.upper() if c.isalpha()]
+        if len(cleaned_cipher) % 2 != 0:
+            raise ValueError("Ciphertext length must be even.")
 
-        for i in range(0, len(cipher_text), 2):
-            pair = cipher_text[i:i+2]
+        decrypted_text = ""
+        for i in range(0, len(cleaned_cipher), 2):
+            pair = cleaned_cipher[i:i+2]
             row1, col1 = self.find_letter_coords(matrix, pair[0])
             row2, col2 = self.find_letter_coords(matrix, pair[1])
 
             if row1 == row2:
-                decrypted_text += matrix[row1][(col1 - 1) %
-                                               5] + matrix[row2][(col2 - 1) % 5]
+                decrypted_text += matrix[row1][(col1 - 1) % 5] + matrix[row2][(col2 - 1) % 5]
             elif col1 == col2:
-                decrypted_text += matrix[(row1 - 1) %
-                                         5][col1] + matrix[(row2 - 1) % 5][col2]
+                decrypted_text += matrix[(row1 - 1) % 5][col1] + matrix[(row2 - 1) % 5][col2]
             else:
                 decrypted_text += matrix[row1][col2] + matrix[row2][col1]
                 
         banro = ""
-        # Loại bỏ ký tự 'X' nếu nó là ký tự cuối cùng và là ký tự được thêm vào
-        for i in range(0, len(decrypted_text)-2, 2):
-            if decrypted_text[i] == decrypted_text[i+2]:
+        i = 0
+        while i < len(decrypted_text):
+            if i + 2 < len(decrypted_text) and decrypted_text[i] == decrypted_text[i+2] and decrypted_text[i+1] in ('X', 'Q'):
                 banro += decrypted_text[i]
+                i += 2
             else:
-                banro += decrypted_text[i] + "" + decrypted_text[i+1]
+                banro += decrypted_text[i]
+                i += 1
 
-        if decrypted_text[-1] == "X":
-            banro += decrypted_text[-2]
-        else:
-            banro += decrypted_text[-2]
-            banro += decrypted_text[-1]
+        if len(banro) > 0 and banro[-1] in ('X', 'Q'):
+            banro = banro[:-1]
+
         return banro

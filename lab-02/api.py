@@ -6,6 +6,14 @@ from cipher.playfair import PlayFairCipher
 
 app = Flask(__name__)
 
+@app.errorhandler(ValueError)
+def handle_value_error(e):
+    return jsonify({'error': str(e)}), 400
+
+@app.errorhandler(KeyError)
+def handle_key_error(e):
+    return jsonify({'error': f"Missing required parameter: {str(e)}"}), 400
+
 # CAESAR CIPHER ALGORITHM
 caesar_cipher = CaesarCipher()
 
